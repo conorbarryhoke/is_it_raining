@@ -1,0 +1,135 @@
+# Imports
+from time import sleep
+import twitter, re, datetime, pandas as pd
+import sys
+import re
+import time
+import tweepy
+import os
+import pickle
+from sklearn.linear_model import LogisticRegression
+
+#Load Models
+cvec = pickle.load(open('vectorizer.sav', 'rb'))
+lr = pickle.load(open('lin_regressor.sav', 'rb'))
+
+#Load twitter api keys
+with open('./twitterapi.txt') as f:
+    ck, cs, atk, ats = f.read().split(',')
+twitter_keys = {
+    'consumer_key':        ck,
+    'consumer_secret':     cs,
+    'access_token_key':    atk,
+    'access_token_secret': ats
+}
+auth = tweepy.OAuthHandler(twitter_keys['consumer_key'], twitter_keys['consumer_secret'])
+auth.set_access_token(twitter_keys['access_token_key'], twitter_keys['access_token_secret'])
+api = tweepy.API(auth, wait_on_rate_limit=True,wait_on_rate_limit_notify=True)
+# Define hour convention for text - datetime is GMT - 6, so we have to update it for CST
+def hour_converter(_time_input):
+    _time_zone_adjustment = 6
+    if _time_input < _time_zone_adjustment:
+        _hour_statement = str(_time_input - _time_zone_adjustment + 24) + ":00 PM"
+    elif _time_input == _time_zone_adjustment:
+        _hour_statement = "12:00 AM"
+    elif _time_input < 19:
+        _hour_statement = str(_time_input - _time_zone_adjustment) + ":00 AM"
+    else:
+        _hour_statement = str(_time_input - _time_zone_adjustment) + ":00 PM"
+    return _hour_statement
+
+update_interval_hours = 6
+for i in range(2): # Should run for about a week
+    # Beginning of things actually in the loop
+    _year = datetime.datetime.now().year
+    _month = datetime.datetime.now().month
+    _day = datetime.datetime.now().day
+    _hour = datetime.datetime.now().hour
+    # Variables formatted for tweepy paramaters
+    end_date = '{}-{}-{}'.format(_year, _month, _day + 1, _hour)
+    if _month == 1 & _day ==1:
+        _year == _year-1
+        _month == 12
+        _day == 31
+    elif _day ==1:
+        _year = _year
+        _month = _month -1
+        _day == 28
+    else:
+        _year = _year
+        _month = _month
+        _day = _day - 1
+
+    start_date = '{}-{}-{}'.format(_year, _month, _day, _hour)
+
+    # Configuring API query, giving data a place to land
+    df_small = pd.DataFrame()
+    places = ["Austin, TX"]
+    tweetsPerQry = 100
+    counter = 0
+
+    for place_q in places:
+
+        place = api.geo_search(query=place_q, granularity="city")
+        place_id = place[0].id
+
+        max_id = -1
+        for _ in range(10):
+            try:
+                if (max_id <= 0):
+                    new_tweets = api.search(q='place:%s' % place_id, count=tweetsPerQry, since=start_date, until=end_date)
+                else:
+                    new_tweets = api.search(q='place:%s' % place_id, count=tweetsPerQry, max_id=str(max_id - 1), since=start_date, until=end_date)
+
+                df_text = pd.DataFrame([new_tweets[i]._json['text'] for i in range(len(new_tweets))], columns=['tweet_text'])
+                df_text['tweet_time']=[new_tweets[i]._json['created_at'] for i in range(len(new_tweets))]
+                df_text['tweet_place'] = place_q
+
+                df_small = pd.concat([df_small, df_text])
+    #             df_big = pd.concat([df_big, df_text])
+                if not new_tweets:
+                    counter += 1
+                    df_small.to_csv('./data/collected_tweets_{}.csv'.format(counter)) # Should provide log of last good pull at least
+    #                 df_big.to_csv('./data/collected_tweets_big_{}.csv'.format(counter))
+                    print("No more tweets found")
+                    break
+
+                max_id = new_tweets[-1].id
+            except tweepy.TweepError as e:
+                print('    all_done')
+                break
+            sleep(5) # Avoid overloading the system
+    # Transform twitter data to match model features. Method will fill in empty columns
+    model_columns = cvec.get_feature_names()
+    df_small = pd.concat([df_small.reset_index().drop('index', axis=1), pd.DataFrame(cvec.transform(df_small.tweet_text.str.lower()).todense(), columns=cvec.get_feature_names())], axis=1)
+    _X = df_small.loc[:, [col for col in df_small.columns if col in model_columns]]
+    _X.fillna(0, inplace=True)
+
+    df_small['predicted'] = lr.predict(_X)
+    df_small['probas'] = [element[1] for element in lr.predict_proba(_X)]
+    # Average predicted probability rain is assumed to be probability of current rain
+    excludes = ['tweet_text', 'tweet_time', 'tweet_place', 'is_rain', 'predicted']
+    _rain_probability = df_small.loc[:, excludes + ['predicted', 'probas']].groupby('tweet_place').mean()['probas'].values[0]
+    _rain_probability = round(_rain_probability*100, 1)
+
+    # Edit raining file to read as current rain probability
+    f= open("isitraining.txt","w+")
+    f.write(str(_rain_probability))
+    f.close()
+    # Edit update date file to read as date at time of Twitter call
+    f= open("update_date.txt","w+")
+    f.write('{} {}, {} at {}'.format(datetime.datetime.now().strftime("%B"), _day, _year, hour_converter(_hour)))
+    f.close()
+    # copy in new (command is specific to Google VM)
+    os.system("gsutil cp -r ~/isitraining.txt gs://is-it-raining/")
+    os.system("gsutil cp -r ~/update_date.txt gs://is-it-raining/")
+    # set access public (command is specific to Google VM)
+    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/isitraining.txt")
+    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/update_date.txt")
+    # Update the log to record date, time, and prediction
+    update_log = pd.read_csv('./update_log.csv')
+    update_log = pd.concat([update_log, pd.DataFrame({'Date': datetime.datetime.now(), 'rain_statement': _rain_probability}, index=[0])])
+    update_log.to_csv('./update_log.csv', index=False)
+
+# sleep(update_interval_hours*60*60)
+sleep(20)
