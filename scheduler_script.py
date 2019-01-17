@@ -39,7 +39,7 @@ def hour_converter(_time_input):
     return _hour_statement
 
 update_interval_hours = 6
-for i in range(2): # Should run for about a week
+for i in range(28): # Should run for about a week
     # Beginning of things actually in the loop
     _year = datetime.datetime.now().year
     _month = datetime.datetime.now().month
@@ -131,5 +131,5 @@ for i in range(2): # Should run for about a week
     update_log = pd.concat([update_log, pd.DataFrame({'Date': datetime.datetime.now(), 'rain_statement': _rain_probability}, index=[0])])
     update_log.to_csv('./update_log.csv', index=False)
 
-# sleep(update_interval_hours*60*60)
-sleep(20)
+    sleep(update_interval_hours*60*60)
+
