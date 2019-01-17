@@ -1,7 +1,7 @@
 # Is it Raining?
 A sophisticated application that mines twitter to determine whether it is currently raining in Austin, TX.
 
-Web page: https://conorbarryhoke.github.io/is-it-raining/
+Web page: https://conorbarryhoke.github.io/is-it-raining/  
 Inspired by the <a href="https://ismetroonfire.com">Is DC Metro on Fire?</a> project.
 
 ## Overview
