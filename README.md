@@ -42,3 +42,7 @@ On the github.io page, an object reads in the raining prediction and appends an 
 Why do it this way? 
 Hosting the application and website separately allows things like the Twitter API key used to remain private, as well as cutting down on transactions and therfore costs on the application server. 
 A direct AJAX / JQUERY call would violate Same-Origin policy, so creating the public document seemed like a good work-around (and less intensive then developing an entire API to serve one number and one date at a time). 
+
+# Fork / Clone / Copy notes
+When replicating this implementation, note that the existing file structure is a <strong>must</strong>. The following files should be created before running all:
+* 
