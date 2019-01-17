@@ -8,7 +8,7 @@ This repo contains all the code necessary for analyzing and exporting data from 
 
 This focus of this project is more about proof of concept for sharing information between platforms, running scripts on Google VMs, and creating ETL data pipelines. The model itself is secondary, and the output is meant to be taken <i>very</i> lightly.
 
-The HTML required to deploy the infromation is <a href="https://github.com/conorbarryhoke/conorbarryhoke.github.io/tree/master/_posts">here</a>
+The HTML required to deploy the infromation is <a href="https://github.com/conorbarryhoke/conorbarryhoke.github.io/tree/master/_posts">here</a> in the is-it-raining.md file. 
 
 ## Methodology
 ### Developing the Baseline (The Static Piece)
