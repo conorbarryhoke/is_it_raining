@@ -135,10 +135,10 @@ for i in range(7*2*int(24/update_interval_hours)): # Should run for about 2 week
     f.write('{} {}, {} at {}'.format(datetime.datetime.now().strftime("%B"), _day, _year, hour_converter(_hour)))
     f.close()
     # copy in new (command is specific to Google VM)
-    os.system("gsutil cp -r ~/isitraining.txt gs://is-it-raining/")
+    os.system("gsutil cp -r ~/isitraining.html gs://is-it-raining/")
     os.system("gsutil cp -r ~/update_date.txt gs://is-it-raining/")
     # set access public (command is specific to Google VM)
-    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/isitraining.txt")
+    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/isitraining.html")
     os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/update_date.txt")
     # Update the log to record date, time, and prediction
     update_log = pd.read_csv('./update_log.csv')
