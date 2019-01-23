@@ -38,8 +38,8 @@ def hour_converter(_time_input):
         _hour_statement = str(_time_input - _time_zone_adjustment) + ":00 PM"
     return _hour_statement
 
-update_interval_hours = 6
-for i in range(28): # Should run for about a week
+update_interval_hours = 3
+for i in range(7*2*int(24/update_interval_hours)): # Should run for about 2 weeks
     # Beginning of things actually in the loop
     _year = datetime.datetime.now().year
     _month = datetime.datetime.now().month
@@ -112,10 +112,24 @@ for i in range(28): # Should run for about a week
     _rain_probability = df_small.loc[:, excludes + ['predicted', 'probas']].groupby('tweet_place').mean()['probas'].values[0]
     _rain_probability = round(_rain_probability*100, 1)
 
+    # Write in an interpretation statement to improve UX
+    if _rain_probability < 20:
+        rain_qualifier = "(so probably not)"
+    elif _rain_probability < 40:
+        rain_qualifier = "(so maybe?)"
+    elif _rain_probability < 80:
+        rain_qualifier = "(so probably!)"
+    else:
+        rain_qualifier = "Its definitely raining!"
+
+    html_statement = '<!DOCTYPE html><html><head><style type="text/css">.karen_message{}</style><style type="text/css">.qualifier_message{} </style></head><body><center><p class="karen_message">This is Karen_Bot with the weather! <br><br>I am here in Austin and there is a <br><strong>{}%</strong> chance that it is already raining! <br><br><i class="qualifier_message">{}</i> </p></center> </body></html>'.format("font-size: 16px;","font-size: 12px;", _rain_probability, rain_qualifier)
+
+
     # Edit raining file to read as current rain probability
-    f= open("isitraining.txt","w+")
-    f.write(str(_rain_probability))
+    f= open("isitraining.html","w+")
+    f.write(html_statement)
     f.close()
+    
     # Edit update date file to read as date at time of Twitter call
     f= open("update_date.txt","w+")
     f.write('{} {}, {} at {}'.format(datetime.datetime.now().strftime("%B"), _day, _year, hour_converter(_hour)))
