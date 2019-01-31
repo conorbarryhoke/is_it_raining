@@ -38,29 +38,15 @@ def hour_converter(_time_input):
         _hour_statement = str(_time_input - _time_zone_adjustment) + ":00 PM"
     return _hour_statement
 
-update_interval_hours = 6
-for i in range(28): # Should run for about a week
+update_interval_hours = 3
+for i in range(7*2*int(24/update_interval_hours)): # Should run for about 2 weeks
     # Beginning of things actually in the loop
-    _year = datetime.datetime.now().year
-    _month = datetime.datetime.now().month
-    _day = datetime.datetime.now().day
-    _hour = datetime.datetime.now().hour
+    tomorrow = datetime.datetime.now() + datetime.timedelta(1)
+    today = datetime.datetime.now()
+    yesterday = datetime.datetime.now() - datetime.timedelta(1)
     # Variables formatted for tweepy paramaters
-    end_date = '{}-{}-{}'.format(_year, _month, _day + 1, _hour)
-    if _month == 1 & _day ==1:
-        _year == _year-1
-        _month == 12
-        _day == 31
-    elif _day ==1:
-        _year = _year
-        _month = _month -1
-        _day == 28
-    else:
-        _year = _year
-        _month = _month
-        _day = _day - 1
-
-    start_date = '{}-{}-{}'.format(_year, _month, _day, _hour)
+    end_date = '{}-{}-{}'.format(tomorrow.year, tomorrow.month, tomorrow.day)
+    start_date = '{}-{}-{}'.format(yesterday.year, yesterday.month, yesterday.day)
 
     # Configuring API query, giving data a place to land
     df_small = pd.DataFrame()
@@ -86,11 +72,11 @@ for i in range(28): # Should run for about a week
                 df_text['tweet_place'] = place_q
 
                 df_small = pd.concat([df_small, df_text])
-    #             df_big = pd.concat([df_big, df_text])
+
                 if not new_tweets:
                     counter += 1
                     df_small.to_csv('./data/collected_tweets_{}.csv'.format(counter)) # Should provide log of last good pull at least
-    #                 df_big.to_csv('./data/collected_tweets_big_{}.csv'.format(counter))
+
                     print("No more tweets found")
                     break
 
@@ -99,6 +85,15 @@ for i in range(28): # Should run for about a week
                 print('    all_done')
                 break
             sleep(5) # Avoid overloading the system
+    # Try to use only the most recent tweets
+    # If there are not enough, use a wider range
+    df_small["tweet_time"] = pd.to_datetime(df_small.tweet_time)
+    if df_small[df_small.tweet_time > (datetime.datetime.now() - datetime.timedelta(hours=2))].shape[0] > 50:
+        df_small = df_small[df_small.tweet_time > (datetime.datetime.now() - datetime.timedelta(hours=2))]
+    elif df_small[df_small.tweet_time > (datetime.datetime.now() - datetime.timedelta(hours=4))].shape[0]>50:
+        df_small = df_small[df_small.tweet_time > (datetime.datetime.now() - datetime.timedelta(hours=4))]
+    else:
+        df_small = df_small
     # Transform twitter data to match model features. Method will fill in empty columns
     model_columns = cvec.get_feature_names()
     df_small = pd.concat([df_small.reset_index().drop('index', axis=1), pd.DataFrame(cvec.transform(df_small.tweet_text.str.lower()).todense(), columns=cvec.get_feature_names())], axis=1)
@@ -111,20 +106,32 @@ for i in range(28): # Should run for about a week
     excludes = ['tweet_text', 'tweet_time', 'tweet_place', 'is_rain', 'predicted']
     _rain_probability = df_small.loc[:, excludes + ['predicted', 'probas']].groupby('tweet_place').mean()['probas'].values[0]
     _rain_probability = round(_rain_probability*100, 1)
+    # Write in an interpretation statement to improve UX
+    if _rain_probability < 20:
+        rain_qualifier = "(so probably not)"
+    elif _rain_probability < 40:
+        rain_qualifier = "(so maybe?)"
+    elif _rain_probability < 80:
+        rain_qualifier = "(so probably!)"
+    else:
+        rain_qualifier = "Its definitely raining!"
+
+    html_statement = '<!DOCTYPE html><html><head><style type="text/css">.karen_message{}</style><style type="text/css">.qualifier_message{} </style></head><body><center><p class="karen_message">This is Karen_Bot with the weather! <br><br>I am here in Austin and there is a <br><strong>{}%</strong> chance that it is already raining! <br><br><i class="qualifier_message">{}</i> </p></center> </body></html>'.format("font-size: 16px;","font-size: 12px;", _rain_probability, rain_qualifier)
+
 
     # Edit raining file to read as current rain probability
-    f= open("isitraining.txt","w+")
-    f.write(str(_rain_probability))
+    f= open("isitraining.html","w+")
+    f.write(html_statement)
     f.close()
     # Edit update date file to read as date at time of Twitter call
     f= open("update_date.txt","w+")
-    f.write('{} {}, {} at {}'.format(datetime.datetime.now().strftime("%B"), _day, _year, hour_converter(_hour)))
+    f.write('{} {}, {} at {}'.format(datetime.datetime.now().strftime("%B"), today.day,today.year, hour_converter(today.hour)))
     f.close()
     # copy in new (command is specific to Google VM)
-    os.system("gsutil cp -r ~/isitraining.txt gs://is-it-raining/")
+    os.system("gsutil cp -r ~/isitraining.html gs://is-it-raining/")
     os.system("gsutil cp -r ~/update_date.txt gs://is-it-raining/")
     # set access public (command is specific to Google VM)
-    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/isitraining.txt")
+    os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/isitraining.html")
     os.system("gsutil acl ch -u AllUsers:R gs://is-it-raining/update_date.txt")
     # Update the log to record date, time, and prediction
     update_log = pd.read_csv('./update_log.csv')
@@ -132,4 +139,3 @@ for i in range(28): # Should run for about a week
     update_log.to_csv('./update_log.csv', index=False)
 
     sleep(update_interval_hours*60*60)
-
