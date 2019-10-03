@@ -17,9 +17,18 @@ class bigquery_handler(object):
         self.client = bigquery.Client(credentials=self.credentials,
             project=self.credentials.project_id)
 
-    def run_query(self):
-
+    def run_query(self, how='inserts'):
+        
         self.query_job = self.client.query(self.q_base, location=self.location)
-        self.query_job_result = self.query_job.result()
-        return self.query_job_result
+        
+        if how == 'inserts':
+            self.query_job_result = self.query_job.result()
+            return self.query_job_result
+
+        if how == 'selects':
+            return self.query_job.to_dataframe()
+
+
+
+
 
