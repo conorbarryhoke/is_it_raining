@@ -14,11 +14,11 @@ import datetime
 
 def run_main():
     hour_counter = 0
-    while hour_counter < 24*7:
+    while hour_counter < 24*7*8:
         run_weather.run_main()
         if hour_counter % 24 == 0:
             run_twitter.run_main()
-        
+
         hour_counter+=1    
 
         sleep(60*60)
