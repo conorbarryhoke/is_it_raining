@@ -20,14 +20,14 @@ def city_mapper(x):
     return 'other'
 
 # Vectorizer
-simple_cvec = pickle.load(open('info/cvec_simple.sav', 'rb'))
+simple_cvec = pickle.load(open('../info/cvec_simple.sav', 'rb'))
 
-with open("cvec_feats.txt", "r") as f:
+with open("../cvec_feats.txt", "r") as f:
     good_feats = f.read()
     f.close()
 good_feats = good_feats.split(', ')
 
-lr = pickle.load(open('new_log_reg_v2.sav', 'rb'))
+lr = pickle.load(open('../new_log_reg_v2.sav', 'rb'))
 
 def interpret_rain(probability):
     if probability > .8:
@@ -115,17 +115,17 @@ def run_main():
 
     html_statement = '<!DOCTYPE html><html><head><style type="text/css">.karen_message{}</style><style type="text/css">.qualifier_message{} </style></head><body><center><p class="karen_message">This is Karen_Bot with the weather! <br><br>I am here in Austin and there is a <br><strong>{}</strong> chance that it is already raining! <br><br><i class="qualifier_message">{}</i> </p></center> </body></html>'.format("{font-size: 16px};","{font-size: 12px};", _rain_probability, rain_qualifier)
 
-    f= open("isitraining.html","w+")
+    f= open("../isitraining.html","w+")
     f.write(html_statement)
     f.close() 
 
-    f= open("update_date.txt","w+")
+    f= open("../update_date.txt","w+")
     f.write('{:%B %d, %Y at %H:%M} CST'.format(most_recent_time,most_recent_time ))
     f.close() 
 
     # copy in new
-    rez1 = os.system("gsutil cp -r {}/isitraining.html {}".format(cwd, f_path_full))
-    rez2 = os.system("gsutil cp -r {}/update_date.txt {}".format(cwd, f_path_date))
+    rez1 = os.system("gsutil cp -r {}/../isitraining.html {}".format(cwd, f_path_full))
+    rez2 = os.system("gsutil cp -r {}/../update_date.txt {}".format(cwd, f_path_date))
 
     # set access public
     rez3 = os.system("gsutil acl ch -u AllUsers:R {}".format(f_path_full))
